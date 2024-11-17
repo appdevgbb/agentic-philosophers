@@ -4,7 +4,7 @@
             "type": "coreclr",
             "request": "launch",
             "name": "Launch .NET Core Console App",
-            "program": "${workspaceFolder}/bin/Debug/net8.0/AgenticPhilosophers.dll",
+            "program": "${workspaceFolder}/AgenticPhilosophers/bin/Debug/net8.0/AgenticPhilosophers.dll",
             "args": [],
             "cwd": "${workspaceFolder}",
             "stopAtEntry": false

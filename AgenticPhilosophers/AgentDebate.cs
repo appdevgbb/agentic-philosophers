@@ -71,8 +71,11 @@ public class AgentDebate
 
         // Create the OpenAI client provider for the OpenAI Assistant agent 
         // and load an environment variable for the OpenAI endpoint and model.
-        DotEnv.Load();
- 
+        DotEnv.Load(options: new DotEnvOptions(
+            ignoreExceptions: true,
+            envFilePaths: new[] {"../.env"}
+        ));
+        
         OpenAIClientProvider provider = OpenAIClientProvider.ForAzureOpenAI(new DefaultAzureCredential(), new Uri(OpenAIEndpoint));
 
         // Define the agent for Socrates
@@ -134,7 +137,7 @@ public class AgentDebate
             // Create a termination function
             KernelFunction terminateFunction = KernelFunctionFactory.CreateFromPrompt(
                 $$$"""
-                    Determine if the conversation is complete. If so, respond with a single word: yes.
+                    Make sure every participant gets a chance to speak. 
 
                     History:
 
