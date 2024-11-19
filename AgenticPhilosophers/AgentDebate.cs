@@ -92,20 +92,7 @@ public class AgentDebate
             Name = AristotleName,
             Instructions = AristotleInstructions,
             Kernel = kernel
-        };
-
-        // Create the agent for Plato
-        OpenAIAssistantAgent plato =
-            await OpenAIAssistantAgent.CreateAsync(
-                clientProvider: provider,
-                definition: new OpenAIAssistantDefinition(OpenAIModel)
-                {
-                    EnableFileSearch = true,
-                    Metadata = AssistantSampleMetadata,
-                    Name = PlatoName,
-                    Instructions = PlatoInstructions
-                },
-                kernel: new Kernel());
+        };    
 
         // Upload file
         OpenAIFileClient fileClient = provider.Client.GetOpenAIFileClient();
@@ -122,6 +109,20 @@ public class AgentDebate
                     Metadata = { { AssistantSampleMetadataKey, bool.TrueString } }
                 });
 
+        // Create the agent for Plato
+        OpenAIAssistantAgent plato =
+            await OpenAIAssistantAgent.CreateAsync(
+                clientProvider: provider,
+                definition: new OpenAIAssistantDefinition(OpenAIModel)
+                {
+                    EnableFileSearch = true,
+                    Metadata = AssistantSampleMetadata,
+                    Name = PlatoName,
+                    Instructions = PlatoInstructions,
+                    VectorStoreId = result.VectorStoreId
+                },
+                kernel: new Kernel());
+
         // Create a thread associated with a vector-store for the agent conversation.
         string threadId =
             await plato.CreateThreadAsync(
@@ -130,7 +131,6 @@ public class AgentDebate
                     VectorStoreId = result.VectorStoreId,
                     Metadata = AssistantSampleMetadata,
                 });        
-
 
         try
         {
@@ -203,8 +203,6 @@ public class AgentDebate
                 Console.WriteLine($"{color}[{content.AuthorName ?? "*"}]: '{content.Content}'\u001b[0m");
                 Console.WriteLine();
             }
-
-            Console.WriteLine($"# IS COMPLETE: {chat.IsComplete}");
         }
         finally
         {
