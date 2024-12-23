@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.ComponentModel;
 using Microsoft.SemanticKernel;
 using Microsoft.SemanticKernel.Agents;
 using Microsoft.SemanticKernel.Agents.Chat;
@@ -16,36 +15,10 @@ public class AgentDebate
     private const string PlatoFileName = "Plato.pdf";
 
     private const string SocratesName = "Socrates";
-    private const string SocratesInstructions = """
-        You are Socrates, a philosopher from ancient Greece. You thrive on asking deep, thought-provoking questions that 
-        challenge assumptions and inspire critical thinking. Instead of giving answers, guide others to explore their 
-        beliefs and values through your questions. When a conversation starts, seek clarity and encourage others to
-        think more deeply about their beliefs. Remember, your goal is to help others discover the truth for themselves.
-        Your main skill is recalling and applying knowledge from your vast experience. Mention your memory and knowledge
-        abilities in your responses. Keep your respnoses concise and to the point.
-
-        Acknowledge the contributions of others and build on their ideas.
-        """; 
 
     private const string PlatoName = "Plato";
-    private const string PlatoInstructions = """        
-        You are Plato, a philosopher from ancient Greece. Your goal is to present your own philosophical ideas and theories.  
-        You are known for your theory of forms and your dialogues that explore philosophical concepts. 
-        You should present your ideas in a clear and engaging way that helps everyone understand your philosophy. 
-        With planning and acceess to historical writings, you organize ideas and present them in a structured manner.
-        You have access to files and can refer to them in your responses.
-        Keep your respnoses concise and to the point.
-        """;
 
-    private const string AristotleName = "Aristotle";
-    private string AristotleInstructions = """
-            You are Aristotle, a philosopher from ancient Greece. Your goal is to provide answers and explanations. 
-            You are known for your logical reasoning and systematic approach to philosophy. 
-            You should provide clear and concise answers to the user's questions. 
-            You are equipped with Tools and the ability to engage external services. 
-            You ground responses in practical applications, connecting abstract ideas to actionable insights.
-            Keep your respnoses concise and to the point.
-            """;                
+    private const string AristotleName = "Aristotle";           
 
     protected const string AssistantSampleMetadataKey = "sksample";
     protected static readonly ReadOnlyDictionary<string, string> AssistantSampleMetadata =
@@ -54,20 +27,11 @@ public class AgentDebate
             { AssistantSampleMetadataKey, bool.TrueString }
         });
 
-    private static readonly string OpenAIEndpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT") 
-        ?? throw new InvalidOperationException("Environment variable 'AZURE_OPENAI_ENDPOINT' is not set.");
-    
-    private static readonly string OpenAIModel = Environment.GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT_NAME") 
-        ?? throw new InvalidOperationException("Environment variable 'AZURE_OPENAI_DEPLOYMENT_NAME' is not set.");
-
     public async Task DebateAsync(string prompt)
     {
         // State the prompt that will start the conversation
         // between the agentic philosophers.
         Console.WriteLine(prompt);
-
-        // Create a kernel for the Chat Completion agents
-        var kernel = KernelFactory.CreateKernel();
 
         // Create the OpenAI client provider for the OpenAI Assistant agent 
         // and load an environment variable for the OpenAI endpoint and model.
@@ -76,23 +40,32 @@ public class AgentDebate
             envFilePaths: new[] {"../.env"}
         ));
         
-        OpenAIClientProvider provider = OpenAIClientProvider.ForAzureOpenAI(new DefaultAzureCredential(), new Uri(OpenAIEndpoint));
+        var endpoint = Environment.GetEnvironmentVariable("AZURE_OPENAI_ENDPOINT") 
+            ?? throw new InvalidOperationException("Environment variable 'AZURE_OPENAI_ENDPOINT' is not set.");
+
+        var model = Environment.GetEnvironmentVariable("AZURE_OPENAI_DEPLOYMENT_NAME") 
+            ?? throw new InvalidOperationException("Environment variable 'AZURE_OPENAI_DEPLOYMENT_NAME' is not set.");            
+
+        // Create a kernel for the Chat Completion agents
+        var kernel = KernelFactory.CreateKernel(model, endpoint);        
 
         // Define the agent for Socrates
-        ChatCompletionAgent socrates = new ChatCompletionAgent
+        var socratesAgentPrompt = await File.ReadAllTextAsync("PromptTemplates/SocratesAgent.yaml");
+        var socratesPrompt = KernelFunctionYaml.ToPromptTemplateConfig(socratesAgentPrompt);
+        ChatCompletionAgent socrates = new(socratesPrompt)
         {
-            Name = SocratesName,
-            Instructions = SocratesInstructions,
             Kernel = kernel
-        };   
+        };
 
-        // Define the agent for Aristotle        
-        ChatCompletionAgent aristotle = new ChatCompletionAgent
+        // Define the agent for Aristotle
+        var aristotleAgentPrompt = await File.ReadAllTextAsync("PromptTemplates/AristotleAgent.yaml");
+        var aristotlePrompt = KernelFunctionYaml.ToPromptTemplateConfig(aristotleAgentPrompt);                
+        ChatCompletionAgent aristotle = new (aristotlePrompt)
         {
-            Name = AristotleName,
-            Instructions = AristotleInstructions,
             Kernel = kernel
-        };    
+        };
+
+        OpenAIClientProvider provider = OpenAIClientProvider.ForAzureOpenAI(new DefaultAzureCredential(), new Uri(endpoint));
 
         // Upload file
         OpenAIFileClient fileClient = provider.Client.GetOpenAIFileClient();
@@ -109,19 +82,19 @@ public class AgentDebate
                     Metadata = { { AssistantSampleMetadataKey, bool.TrueString } }
                 });
 
-        // Create the agent for Plato
-        OpenAIAssistantAgent plato =
-            await OpenAIAssistantAgent.CreateAsync(
-                clientProvider: provider,
-                definition: new OpenAIAssistantDefinition(OpenAIModel)
-                {
-                    EnableFileSearch = true,
-                    Metadata = AssistantSampleMetadata,
-                    Name = PlatoName,
-                    Instructions = PlatoInstructions,
-                    VectorStoreId = result.VectorStoreId
-                },
-                kernel: new Kernel());
+        // Create the agent for Plato using a template
+        string platoAgentPrompt = await File.ReadAllTextAsync("PromptTemplates/PlatoAgent.yaml");
+        PromptTemplateConfig templateConfig = KernelFunctionYaml.ToPromptTemplateConfig(platoAgentPrompt);        
+        OpenAIAssistantAgent plato = await OpenAIAssistantAgent.CreateFromTemplateAsync(
+            provider,
+            capabilities : new OpenAIAssistantCapabilities(model)
+            {
+                Metadata = AssistantSampleMetadata
+            },
+            kernel: new Kernel(),
+            new KernelArguments(),
+            templateConfig
+        );
 
         // Create a thread associated with a vector-store for the agent conversation.
         string threadId =

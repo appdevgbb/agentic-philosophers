@@ -23,10 +23,11 @@
     <PackageReference Include="Azure.Identity" Version="1.13.1" />
     <PackageReference Include="dotenv.net" Version="3.2.1" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="9.0.0" />
-    <PackageReference Include="Microsoft.SemanticKernel" Version="1.29.0" />
-    <PackageReference Include="Microsoft.SemanticKernel.Agents.Abstractions" Version="1.29.0-alpha" />
-    <PackageReference Include="Microsoft.SemanticKernel.Agents.Core" Version="1.29.0-alpha" />
-    <PackageReference Include="Microsoft.SemanticKernel.Agents.OpenAI" Version="1.29.0-alpha" />
+    <PackageReference Include="Microsoft.SemanticKernel" Version="1.32.0" />
+    <PackageReference Include="Microsoft.SemanticKernel.Agents.Abstractions" Version="1.32.0-alpha" />
+    <PackageReference Include="Microsoft.SemanticKernel.Agents.Core" Version="1.32.0-alpha" />
+    <PackageReference Include="Microsoft.SemanticKernel.Agents.OpenAI" Version="1.32.0-alpha" />
+    <PackageReference Include="Microsoft.SemanticKernel.Yaml" Version="1.32.0" />
   </ItemGroup>
 
 </Project>
